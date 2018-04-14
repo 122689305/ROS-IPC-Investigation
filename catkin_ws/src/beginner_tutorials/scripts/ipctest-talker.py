@@ -44,7 +44,7 @@ import time
 run_time, data_size, comm_rate, queue_size = [int(x) for x in sys.argv[1:]]
 
 def talker():
-    pub = rospy.Publisher('chatter', String, queue_size=queue_size)
+    pub = rospy.Publisher('tcp_test', String, queue_size=queue_size)
     rospy.init_node('talker', anonymous=True)
     rate = rospy.Rate(comm_rate) # 10hz
     heart_beat = '*'*data_size

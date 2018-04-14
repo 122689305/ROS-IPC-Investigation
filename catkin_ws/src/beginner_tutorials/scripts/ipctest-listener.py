@@ -42,14 +42,23 @@ from std_msgs.msg import String
 import time
 
 run_time, data_size, comm_rate, queue_size = [int(x) for x in sys.argv[1:]]
-recv_cnt = 0
-
+recv_cnt = []
+last_recv_time = 0
+start_time = 0
+total_data_size = 0
 
 def callback(data):
-    global recv_cnt
-    recv_cnt += len(data.data)
+    global recv_cnt, last_recv_time, start_time, total_data_size
+    recv_time = time.time()
+    if recv_time - start_time <= run_time:
+        interval = recv_time - last_recv_time
+        last_recv_time = recv_time
+        datasize = len(data.data)
+        total_data_size += datasize
+        recv_cnt.append((interval, datasize))
 
 def listener():
+    global last_recv_time
 
     # In ROS, nodes are uniquely named. If two nodes with the same
     # name are launched, the previous one is kicked off. The
@@ -58,11 +67,14 @@ def listener():
     # run simultaneously.
     rospy.init_node('listener', anonymous=True)
 
-    rospy.Subscriber('chatter', String, callback)
+    start_time = last_recv_time = time.time()
+    rospy.Subscriber('tcp_test', String, callback)
 
     time.sleep(run_time)
-    print recv_cnt
-
+    #for interval, datasize in recv_cnt:
+    #    print("%d %d"%(interval, datasize))
+    #print(sum(x[1] for x in recv_cnt))
+    print(total_data_size)
 
 if __name__ == '__main__':
     listener()
