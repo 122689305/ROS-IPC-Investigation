@@ -4,6 +4,7 @@ from multiprocessing import Pool
 import subprocess
 import statistics as Stat
 import json
+import sys
 
 cmd_base = ["rosrun", "beginner_tutorials"]
 
@@ -82,21 +83,19 @@ def test_mul_talk_mul_lstn(talk_n, lstn_n, args = None):
         args = ["1", "10", "100", "10"]
     talk = gen_talk(*args)
     lstn = gen_lstn(*args)
-    stat = []
 
     for talk_i in nat_range(talk_n):
         for lstn_i in nat_range(lstn_n):
             res_list = p.map(launch, [talk]*talk_i + [lstn]*lstn_i)
-            stat.append(collect_stat(args, res_list))
-    return stat
+            stat = collect_stat(args, res_list)
+            yield stat
 
 def main_test():
     from itertools import product
     queue_size = 10
-    stat = []
     for (run_time, data_size, comm_rate) in product(range(1, 11, 2), [10, 100, 1000, 10000], [1, 10, 100, 1000]):
-        stat += test_mul_talk_mul_lstn(5, 5, list(map(str, [run_time, data_size, comm_rate, queue_size])))
-    return stat
+        for stat in test_mul_talk_mul_lstn(5, 5, list(map(str, [run_time, data_size, comm_rate, queue_size]))):
+            yield stat
 
 
 
@@ -109,6 +108,8 @@ def simple_test():
 
 if __name__ == '__main__':
     init()
-    #stat = test_mul_talk_mul_lstn(1, 1)
-    stat = main_test()
-    print(json.dumps(stat))
+    #stats = test_mul_talk_mul_lstn(1, 1)
+    stats = main_test()
+    for stat in stats:
+        print(json.dumps(stat))
+        sys.stdout.flush()

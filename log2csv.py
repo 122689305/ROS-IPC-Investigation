@@ -6,7 +6,7 @@ import csv
 def log2csv(logname):
     f = open(logname, 'r')
     cf = open(logname+'.csv', 'w')
-    data = json.load(f)
+    data = [json.loads(line) for line in f]
     head = ["run_time(sec)", "data_size(Byte)", "comm_freq(Hz)", "queue_size"]
     tktn = [list(map(lambda s: func+"_"+s, sorted(data[0]['talk'].keys()))) for func in ["talk", "lstn"]]
     head += tktn[0] + tktn[1]
