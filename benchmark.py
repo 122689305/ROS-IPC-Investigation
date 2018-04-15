@@ -7,6 +7,16 @@ import json
 
 cmd_base = ["rosrun", "beginner_tutorials"]
 
+def init():
+    import os, subprocess as sp, json
+    source = 'source ./catkin_ws/devel/setup.bash'
+    #source += ' && source ./catkin_ws/devel/setup.zsh'
+    dump = '/usr/bin/python -c "import os, json;print json.dumps(dict(os.environ))"'
+    pipe = sp.Popen(['/bin/bash', '-c', '%s && %s' %(source,dump)], stdout=sp.PIPE)
+    env_b = pipe.stdout.read()
+    env = json.loads(env_b.decode('utf-8'))
+    os.environ = env
+
 def nat_range(x):
     return range(1, x+1)
 
@@ -81,9 +91,10 @@ def test_mul_talk_mul_lstn(talk_n, lstn_n, args = None):
     return stat
 
 def main_test():
+    from itertools import product
     queue_size = 10
     stat = []
-    for (run_time, data_size, comm_rate) in zip(range(1, 11, 2), [10, 100, 1000, 10000, 100000, 1000000], [1, 10, 100, 1000]):
+    for (run_time, data_size, comm_rate) in product(range(1, 11, 2), [10, 100, 1000, 10000, 100000, 1000000], [1, 10, 100, 1000]):
         stat += test_mul_talk_mul_lstn(5, 5, list(map(str, [run_time, data_size, comm_rate, queue_size])))
     return stat
 
@@ -97,6 +108,7 @@ def simple_test():
     print(p.map(launch, [talk, talk, lstn, lstn]))
 
 if __name__ == '__main__':
+    init()
     #stat = test_mul_talk_mul_lstn(1, 1)
     stat = main_test()
     print(json.dumps(stat))
