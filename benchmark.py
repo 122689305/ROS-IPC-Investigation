@@ -68,7 +68,7 @@ def collect_stat(setting, res_list):
     def l2stat(l):
         return {"length": len(l),
                 "mean": Stat.mean(l),
-                "mdeian": Stat.median(l),
+                "median": Stat.median(l),
                 "stdev": Stat.stdev(l) if len(l) > 1 else 0,
                 "sum" : sum(l)
                 }
@@ -94,7 +94,7 @@ def main_test():
     from itertools import product
     queue_size = 10
     stat = []
-    for (run_time, data_size, comm_rate) in product(range(1, 11, 2), [10, 100, 1000, 10000, 100000, 1000000], [1, 10, 100, 1000]):
+    for (run_time, data_size, comm_rate) in product(range(1, 11, 2), [10, 100, 1000, 10000], [1, 10, 100, 1000]):
         stat += test_mul_talk_mul_lstn(5, 5, list(map(str, [run_time, data_size, comm_rate, queue_size])))
     return stat
 
