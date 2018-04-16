@@ -51,11 +51,14 @@ def callback(data):
     global recv_cnt, last_recv_time, start_time, total_data_size
     recv_time = time.time()
     if recv_time - start_time <= run_time:
+        print('recvd')
         interval = recv_time - last_recv_time
         last_recv_time = recv_time
         datasize = len(data.data)
         total_data_size += datasize
         recv_cnt.append((interval, datasize))
+    else:
+        print('exceed')
 
 def listener():
     global last_recv_time
@@ -72,10 +75,9 @@ def listener():
 
     time.sleep(run_time)
     #print(sum(x[1] for x in recv_cnt))
-    #print("hey")
-    #print(total_data_size)
-    #for interval, datasize in recv_cnt:
-    #    print("%d %d"%(interval, datasize))
+    print(total_data_size)
+    for interval, datasize in recv_cnt:
+        print("%d %d"%(interval, datasize))
 
 if __name__ == '__main__':
     listener()

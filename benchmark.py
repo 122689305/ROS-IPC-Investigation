@@ -7,6 +7,7 @@ import json
 import sys
 
 cmd_base = ["rosrun", "beginner_tutorials"]
+#cmd_base = ["python"]
 
 def init():
     import os, subprocess as sp, json
@@ -30,11 +31,15 @@ def run_talker(run_time, data_size, comm_freq, queue_size):
     output = run(cmd)
     return int(output)
 
-def run_listener(run_time):
-    data_size, comm_freq, queue_size = ("-1", "-1", "-1") #trivial parameter
+def run_listener(run_time, data_size, comm_freq, queue_size):
     cmd = cmd_base + ["ipctest-listener.py", run_time, data_size, comm_freq, queue_size]
     output = run(cmd)
-    return int(output)
+    output = output.decode().strip()
+    output = output.split('\n')
+    data_recv = int(output[0])
+    recv_flow = [x.split() for x in output[1:]]
+    recv_flow = list(map(lambda x: (float(x[0]), float(x[1]), int(x[2])), recv_flow))
+    return (data_recv, recv_flow)
 
 def unit(f):
     f()
@@ -53,8 +58,8 @@ def launch(args):
 def gen_talk(run_time, data_size, comm_freq, queue_size):
     return ("talk", [run_time, data_size, comm_freq, queue_size])
 
-def gen_lstn(run_time, data_size="", comm_freq="", queue_size=""):
-    return ("lstn", [run_time])
+def gen_lstn(run_time, data_size, comm_freq, queue_size):
+    return ("lstn", [run_time, data_size, comm_freq, queue_size])
 
 def collect_stat(setting, res_list):
     stat = {"setting":setting}
@@ -74,7 +79,7 @@ def collect_stat(setting, res_list):
                 "sum" : sum(l)
                 }
     stat["talk"] = l2stat(talk)
-    stat["lstn"] = l2stat(lstn)
+    stat["lstn"] = l2stat([datarecv_dataflow[0] for datarecv_dataflow in lstn])
     return stat
 
 def test_mul_talk_mul_lstn(talk_n, lstn_n, args = None):
@@ -93,11 +98,47 @@ def test_mul_talk_mul_lstn(talk_n, lstn_n, args = None):
 def main_test():
     from itertools import product
     queue_size = 10
-    for (run_time, data_size, comm_rate) in product(range(1, 11, 2), [10, 100, 1000, 10000], [1, 10, 100, 1000]):
-        for stat in test_mul_talk_mul_lstn(5, 5, list(map(str, [run_time, data_size, comm_rate, queue_size]))):
+    for (run_time, data_size, comm_freq) in product(range(1, 6), [1, 10, 100, 1000], [1, 10, 100, 1000]):
+        for stat in test_mul_talk_mul_lstn(5, 5, list(map(str, [run_time, data_size, comm_freq, queue_size]))):
             yield stat
 
+def delay_test(talk_n, lstn_n, run_time, data_size, comm_freq, queue_size):
+    p = Pool(talk_n + lstn_n)
+    talk_args = [str(run_time), str(data_size), str(comm_freq), str(queue_size)]
+    lstn_args = [str(run_time), str(data_size), str(comm_freq), str(queue_size)]
+    talk = gen_talk(*talk_args)
+    lstn = gen_lstn(*lstn_args)
 
+    def process_res_list(res_list):
+        from functools import reduce
+        data = [x[1][1] for x in res_list if x[0] == 'lstn']
+        data = list(reduce(lambda a,b: b+a, data, []))
+        for interval, delay, data_size in data:
+            yield {"interval":interval,
+                    "delay"  :delay,
+                    "data_size":data_size}
+
+    for talk_i in nat_range(talk_n):
+        for lstn_i in nat_range(lstn_n):
+            res_list = p.map(launch, [talk]*talk_i + [lstn]*lstn_i)
+            for entry in process_res_list(res_list):
+                entry["talk_n"] = talk_i
+                entry["lstn_n"] = lstn_i
+                yield entry
+
+def main_delay_test():
+    from itertools import product
+    queue_size = 10
+    for (run_time, data_size, comm_freq) in product(range(1, 6), [1, 10, 100, 1000], [1, 10, 100, 1000]):
+        for stat in delay_test(5, 5, run_time, data_size, comm_freq, queue_size):
+            yield stat
+
+def small_delay_test():
+    from itertools import product
+    queue_size = 10
+    for (run_time, data_size, comm_freq) in product(range(1, 3), [100, 1000], [100, 1000]):
+        for stat in delay_test(2, 2, run_time, data_size, comm_freq, queue_size):
+            yield stat
 
 def simple_test():
     p = Pool(20)
@@ -109,7 +150,10 @@ def simple_test():
 if __name__ == '__main__':
     init()
     #stats = test_mul_talk_mul_lstn(1, 1)
-    stats = main_test()
+    #stats = main_test()
+    #stats = delay_test(1, 1, 1, 100, 10, 10)
+    stats = small_delay_test()
+    #stats = main_delay_test()
     for stat in stats:
         print(json.dumps(stat))
         sys.stdout.flush()

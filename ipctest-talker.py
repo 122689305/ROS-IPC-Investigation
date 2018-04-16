@@ -33,7 +33,7 @@
 #
 # Revision $Id$
 
-## Simple talker demo that listens to std_msgs/Strings published
+## Simple talker demo that published std_msgs/Strings messages
 ## to the 'chatter' topic
 
 import rospy
@@ -42,40 +42,22 @@ from std_msgs.msg import String
 import time
 
 run_time, data_size, comm_rate, queue_size = [int(x) for x in sys.argv[1:]]
-recv_cnt = []
-last_recv_time = 0
-start_time = 0
-total_data_size = 0
 
-def callback(data):
-    global recv_cnt, last_recv_time, start_time, total_data_size
-    recv_time = time.time()
-    if recv_time - start_time <= run_time:
-        interval = recv_time - last_recv_time
-        last_recv_time = recv_time
-        datasize = len(data.data)
-        total_data_size += datasize
-        recv_cnt.append((interval, datasize))
-
-def listener():
-    global last_recv_time
-
-    # In ROS, nodes are uniquely named. If two nodes with the same
-    # name are launched, the previous one is kicked off. The
-    # anonymous=True flag means that rospy will choose a unique
-    # name for our 'listener' node so that multiple listeners can
-    # run simultaneously.
-    rospy.init_node('listener', anonymous=True)
-
-    start_time = last_recv_time = time.time()
-    rospy.Subscriber('tcp_test', String, callback)
-
-    time.sleep(run_time)
-    #print(sum(x[1] for x in recv_cnt))
-    #print("hey")
-    #print(total_data_size)
-    #for interval, datasize in recv_cnt:
-    #    print("%d %d"%(interval, datasize))
+def talker():
+    pub = rospy.Publisher('tcp_test', String, queue_size=queue_size)
+    rospy.init_node('talker', anonymous=True)
+    rate = rospy.Rate(comm_rate) # 10hz
+    heart_beat = '*'*data_size
+    time_start = time.time()
+    sent_cnt = 0
+    while time.time() - time_start < run_time and (not rospy.is_shutdown()):
+        pub.publish(heart_beat)
+        sent_cnt += data_size
+        rate.sleep()
+    print sent_cnt
 
 if __name__ == '__main__':
-    listener()
+    try:
+        talker()
+    except rospy.ROSInterruptException:
+        pass
