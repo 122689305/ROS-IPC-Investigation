@@ -162,15 +162,15 @@ def simple_test():
 if __name__ == '__main__':
     init()
     #stats = test_mul_talk_mul_lstn(1, 1)
-    #stats = main_test()
+    stats = main_test()
     #stats = delay_test(1, 1, 1, 100, 10, 10)
     #stats = small_delay_test()
     #stats = main_delay_test()
-    stats = uniform_delay_test()
+    #stats = uniform_delay_test()
     cnt = 0
     for stat in stats:
         print(json.dumps(stat))
         cnt += 1
-        if (cnt % 1000 == 0):
+        if (cnt % 100 == 0):
             sys.stdout.flush()
     sys.stdout.flush()

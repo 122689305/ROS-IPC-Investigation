@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 import scipy
 import numpy as np
 import sphviewer as sph
+import math
 
 import sys
 sys.path += ['/home/yt113/.local/lib/python3.5/site-packages', '/usr/local/lib/python3.5/dist-packages']
@@ -100,7 +101,6 @@ def heatplot(x, y, nb=32, xsize=500, ysize=500):
     extent = R.get_extent()
     for i, j in zip(xrange(4), [x0,x0,y0,y0]):
         extent[i] += j
-    print(extent)
     return img, extent
         
 #(x[0], scipy.mean(list(x[1])[1]))
@@ -193,6 +193,17 @@ def scatter_plot(ax, x,y, title, x_label, y_label, x_log=False):
     if x_log:
         ax.set_xscale('log')
     #plt.show()
+
+def heat_plot(ax, x, y, title, x_label, y_label, nb=64):
+    heatmap, extent = heatplot(x,y, nb=nb)
+    if ax is None:
+        plt.figure()
+        ax = plt.gca()
+    ax.imshow(heatmap, extent=extent, origin='lower', aspect='auto')
+    ax.set_title(title)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+
     
 def analyze_delay_in_nodenums(csv_name):
     data = load_csv(csv_name)
@@ -205,9 +216,8 @@ def analyze_delay_in_nodenums(csv_name):
     nn = data_in_nodenums.keys()
     max_talkn = max(np[0] for np in nn)
     max_lstnn = max(np[1] for np in nn)
-    print(max_talkn, max_lstnn)
     figs = {}
-    for x_type in ["interval", "data_size"]:
+    for x_type in ["interval", "data_size", "speed", "interval_heat"]:
         fig, axes = plt.subplots(max_talkn, max_lstnn, sharex=True, sharey=True, figsize=(15,15))
         figs[x_type] = {"fig":fig, "axes":axes}
         
@@ -217,13 +227,20 @@ def analyze_delay_in_nodenums(csv_name):
         y_shared = [float(d['delay']) * 1000 for d in sub_data] #ms
         y_label = "delay (ms)"
         xs = {}
-        xs["interval"] = [float(d["interval"]) * 1000 for d in sub_data] # ms
-        xs["data_size"] = [float(d["data_size"]) / 1000 for d in sub_data] # KB
+        xs["interval"] = np.array([float(d["interval"]) * 1000 for d in sub_data]) # ms
+        xs["data_size"] = np.array([float(d["data_size"]) / 1000 for d in sub_data]) # KB
+        xs["speed"] = xs["data_size"] / xs["interval"] # KB / ms
+        xs["interval_heat"] = np.log10(xs["interval"]) # 10^(x) KB
         
         xlbl = {}
         xlbl["interval"] = "interval (ms)"
         xlbl["data_size"] = "data_size (KB)"
+        xlbl["speed"] = "speed (KB/ms)"
+        xlbl["interval_heat"] = "interval (10^(x) KB)"
         
+        # new_xs = {}
+        # new_xs["interval_heat"] = xs["interval_heat"]
+        # xs = new_xs
         for x_type, x in xs.items():
             axes = figs[x_type]["axes"]
             talk_n, lstn_n = nn
@@ -231,15 +248,22 @@ def analyze_delay_in_nodenums(csv_name):
             y = y_shared
             title = title_base + x_type + " - " + "delay" 
             x_label = xlbl[x_type]
-            scatter_plot(ax, x, y, title, x_label, y_label)
+            x_log = False
+            if x_type in ["interval", "data_size", "speed"]:
+                x_log = True
+            
+            if x_type in ["interval", "data_size", "speed"]:
+                scatter_plot(ax, x, y, title, x_label, y_label, x_log)
+            elif x_type in ["interval_heat"]:
+                heat_plot(ax, x, y, title, x_label, y_label, 128)
 
 def main():
     csv_name, csv_type = sys.argv[1:3]
     if csv_type == "recv_rate":
         analyze_recv_rate(csv_name)
     elif csv_type == "delay":
-        analyze_delay_in_nodenums(csv_name)
-        #analyze_delay(csv_name)
+        #analyze_delay_in_nodenums(csv_name)
+        analyze_delay(csv_name)
 
 if __name__ == '__main__':
     main()
