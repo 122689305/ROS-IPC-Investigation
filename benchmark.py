@@ -140,6 +140,18 @@ def small_delay_test():
         for stat in delay_test(2, 2, run_time, data_size, comm_freq, queue_size):
             yield stat
 
+def uniform_delay_test():
+    queue_size = 10
+    settings = []
+    for run_time in [1, 10, 100]:
+        comm_freq = int(1000 / run_time)
+        for data_size in [10, 1000, 1000000]:
+            settings.append((run_time, data_size, comm_freq))
+    for (run_time, data_size, comm_freq) in settings:
+        for stat in delay_test(2, 2, run_time, data_size, comm_freq, queue_size):
+            yield stat
+
+
 def simple_test():
     p = Pool(20)
     talk = ("talk", ["1", "100", "10", "10"])
@@ -152,8 +164,13 @@ if __name__ == '__main__':
     #stats = test_mul_talk_mul_lstn(1, 1)
     #stats = main_test()
     #stats = delay_test(1, 1, 1, 100, 10, 10)
-    stats = small_delay_test()
+    #stats = small_delay_test()
     #stats = main_delay_test()
+    stats = uniform_delay_test()
+    cnt = 0
     for stat in stats:
         print(json.dumps(stat))
-        sys.stdout.flush()
+        cnt += 1
+        if (cnt % 1000 == 0):
+            sys.stdout.flush()
+    sys.stdout.flush()

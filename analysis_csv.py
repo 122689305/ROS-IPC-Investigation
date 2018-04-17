@@ -6,6 +6,14 @@ import itertools
 import matplotlib
 from matplotlib import pyplot as plt
 import scipy
+import numpy as np
+import sphviewer as sph
+
+import sys
+sys.path += ['/home/yt113/.local/lib/python3.5/site-packages', '/usr/local/lib/python3.5/dist-packages']
+
+import seaborn as sns
+from collections import defaultdict
 
 def load_csv(csv_name):
     cf = open(csv_name, 'r')
@@ -68,6 +76,33 @@ def plot_rdagg(rdagg):
 
         plt.show()
 
+def heatplot(x, y, nb=32, xsize=500, ysize=500):   
+    xmin = np.min(x)
+    xmax = np.max(x)
+    ymin = np.min(y)
+    ymax = np.max(y)
+
+    x0 = (xmin+xmax)/2.
+    y0 = (ymin+ymax)/2.
+
+    pos = np.zeros([3, len(x)])
+    pos[0,:] = x
+    pos[1,:] = y
+    w = np.ones(len(x))
+
+    P = sph.Particles(pos, w, nb=nb)
+    S = sph.Scene(P)
+    S.update_camera(r='infinity', x=x0, y=y0, z=0, 
+                    xsize=xsize, ysize=ysize)
+    R = sph.Render(S)
+    R.set_logscale()
+    img = R.get_image()
+    extent = R.get_extent()
+    for i, j in zip(xrange(4), [x0,x0,y0,y0]):
+        extent[i] += j
+    print(extent)
+    return img, extent
+        
 #(x[0], scipy.mean(list(x[1])[1]))
 def analyze_recv_rate(csv_name):
     data = load_csv(csv_name)
@@ -76,20 +111,135 @@ def analyze_recv_rate(csv_name):
 
 def analyze_delay(csv_name):
     data = load_csv(csv_name)
-    y = [d['delay'] for d in data]
+    data = [{k: float(v) for k,v in d.items()} for d in data if float(d["interval"]) > 0]
+    y = [float(d['delay']) for d in data]
+    xs = {}
     for x_type in ["interval", "data_size", "lstn_n", "talk_n"]:
-        x = [d[x_type] for d in data]
+        xs[x_type] = [float(d[x_type]) for d in data]
+
+    x_interval = xs["interval"]
+    #print([x for x in x_interval if x < 0])
+    x_data_size = xs["data_size"]
+    xs["speed"] = [ds / intv for intv, ds  in zip(x_interval, x_data_size)]
+    print(min(xs["speed"]))
+    print(max(xs["speed"]))
+    print(min(xs["interval"]))
+    print(max(xs["interval"]))
+    print(min(xs["data_size"]))
+    print(max(xs["data_size"]))
+    
+    x = xs["data_size"]
+    heatmap_16, extent_16 = heatplot(x,y, nb=64)
+    plt.figure()
+    ax = plt.gca()
+    ax.imshow(heatmap_16, extent=extent_16, origin='lower', aspect='auto')
+    ax.set_title("Smoothing over 16 neighbors")
+    
+    x = xs["data_size"]
+    x_sub = [x[i] for i in range(len(y)) if y[i] < 0.001]
+    y_sub = [y[i] for i in range(len(y)) if y[i] < 0.001]
+    heatmap_16, extent_16 = heatplot(x_sub,y_sub, nb=128)
+    plt.figure()
+    ax = plt.gca()
+    ax.imshow(heatmap_16, extent=extent_16, origin='lower', aspect='auto')
+    ax.set_title("Smoothing over 16 neighbors")
+    
+    x = xs["speed"]
+    #x_sub = [x[i] for i in range(len(y)) if y[i] < 0.001]
+    #y_sub = [y[i] for i in range(len(y)) if y[i] < 0.001]
+    heatmap_16, extent_16 = heatplot(x,y, nb=32)
+    plt.figure()
+    ax = plt.gca()
+    ax.imshow(heatmap_16, extent=extent_16, origin='lower', aspect='auto')
+    ax.set_title("speed")
+    
+    # x = xs["data_size"]
+    # heatmap, xedges, yedges = np.histogram2d(x, y, bins=50)
+    # extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+    # plt.clf()
+    # plt.imshow(heatmap.T, extent=extent, origin='lower')
+    # plt.show()
+    
+    # ax = sns.heatmap(zip(xs["data_size"], y), linewidth=0.5)
+    # plt.show()
+    
+    # plt.figure()
+    # plt.hexbin(xs["data_size"], y)
+    # plt.show()  
+
+    # from mpl_toolkits.mplot3d import Axes3D
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+    # ax.scatter(xs["interval"], xs["data_size"], y, edgecolors='none', alpha=0.5)
+    # plt.show()
+
+    for x_type, x in xs.items():
         plt.figure()
-        plt.title(x_type)
-        plt.scatter(x,y)
+        ax = plt.gca()
+        ax.set_title(x_type)
+        ax.scatter(x,y, edgecolors='none', alpha=0.5)
+        if x_type in ["speed"]:
+            ax.set_xscale('log')
         plt.show()
+        
+def scatter_plot(ax, x,y, title, x_label, y_label, x_log=False):
+    if ax is None:
+        plt.figure()
+        ax = plt.gca()
+    ax.set_title(title)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.scatter(x,y, edgecolors='none', alpha=0.5)
+    if x_log:
+        ax.set_xscale('log')
+    #plt.show()
+    
+def analyze_delay_in_nodenums(csv_name):
+    data = load_csv(csv_name)
+    data = [{k: float(v) for k,v in d.items()} for d in data if float(d["interval"]) > 0]
+    
+    data_in_nodenums = defaultdict(list)
+    for d in data:
+        data_in_nodenums[(int(d["talk_n"]), int(d["lstn_n"]))].append(d)
+        
+    nn = data_in_nodenums.keys()
+    max_talkn = max(np[0] for np in nn)
+    max_lstnn = max(np[1] for np in nn)
+    print(max_talkn, max_lstnn)
+    figs = {}
+    for x_type in ["interval", "data_size"]:
+        fig, axes = plt.subplots(max_talkn, max_lstnn, sharex=True, sharey=True, figsize=(15,15))
+        figs[x_type] = {"fig":fig, "axes":axes}
+        
+    for nn, sub_data in data_in_nodenums.items():
+        talk_n, lstn_n = nn
+        title_base = "talk_n=%d lstn_n=%d "%(talk_n, lstn_n)
+        y_shared = [float(d['delay']) * 1000 for d in sub_data] #ms
+        y_label = "delay (ms)"
+        xs = {}
+        xs["interval"] = [float(d["interval"]) * 1000 for d in sub_data] # ms
+        xs["data_size"] = [float(d["data_size"]) / 1000 for d in sub_data] # KB
+        
+        xlbl = {}
+        xlbl["interval"] = "interval (ms)"
+        xlbl["data_size"] = "data_size (KB)"
+        
+        for x_type, x in xs.items():
+            axes = figs[x_type]["axes"]
+            talk_n, lstn_n = nn
+            ax = axes[talk_n-1, lstn_n-1]
+            y = y_shared
+            title = title_base + x_type + " - " + "delay" 
+            x_label = xlbl[x_type]
+            scatter_plot(ax, x, y, title, x_label, y_label)
 
 def main():
     csv_name, csv_type = sys.argv[1:3]
     if csv_type == "recv_rate":
         analyze_recv_rate(csv_name)
     elif csv_type == "delay":
-        analyze_delay(csv_name)
+        analyze_delay_in_nodenums(csv_name)
+        #analyze_delay(csv_name)
 
 if __name__ == '__main__':
     main()
