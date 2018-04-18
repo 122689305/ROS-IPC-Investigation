@@ -50,32 +50,48 @@ total_data_size = 0
 def callback(data):
     global recv_cnt, last_recv_time, start_time, total_data_size
     recv_time = time.time()
-    if recv_time - start_time <= run_time:
+    elapsed = recv_time - start_time
+    print("------callback-----")
+    if elapsed <= run_time:
         interval = recv_time - last_recv_time
+        print(interval, elapsed, "recvd")
         last_recv_time = recv_time
         datasize = len(data.data)
         total_data_size += datasize
         recv_cnt.append((interval, datasize))
+    else:
+        print(elapsed, "expired")
+    print("=======callback=======")
+
+def cback(data):
+    global recv_cnt, last_recv_time, start_time, total_data_size
+    timestamp, clumsy_data = data.data.split()
+    timestamp = float(timestamp)
+    recv_time = time.time()
+    delay = recv_time - timestamp
+    interval = recv_time - last_recv_time
+    last_recv_time = recv_time
+    recv_cnt.append((interval, delay, len(clumsy_data)))
+
+    elapsed = recv_time - start_time
+    if elapsed <= run_time or start_time == 0:
+        total_data_size += len(data.data)
 
 def listener():
-    global last_recv_time
+    global last_recv_time, start_time
+    start_time_shift = 1
 
-    # In ROS, nodes are uniquely named. If two nodes with the same
-    # name are launched, the previous one is kicked off. The
-    # anonymous=True flag means that rospy will choose a unique
-    # name for our 'listener' node so that multiple listeners can
-    # run simultaneously.
     rospy.init_node('listener', anonymous=True)
 
+    rospy.Subscriber('tcptest', String, cback)
+    time.sleep(start_time_shift)
     start_time = last_recv_time = time.time()
-    rospy.Subscriber('tcp_test', String, callback)
 
-    time.sleep(run_time)
+    time.sleep(run_time*2)
     #print(sum(x[1] for x in recv_cnt))
-    #print("hey")
-    #print(total_data_size)
-    #for interval, datasize in recv_cnt:
-    #    print("%d %d"%(interval, datasize))
+    print(total_data_size)
+    for interval, delay, datasize in recv_cnt:
+        print("%.32f %.32f %d"%(interval, delay, datasize))
 
 if __name__ == '__main__':
     listener()

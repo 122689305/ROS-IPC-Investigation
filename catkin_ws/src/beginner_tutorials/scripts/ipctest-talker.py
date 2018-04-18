@@ -40,21 +40,27 @@ import rospy
 import sys
 from std_msgs.msg import String
 import time
+import numpy as np
 
 run_time, data_size, comm_rate, queue_size = [int(x) for x in sys.argv[1:]]
 
 def talker():
-    pub = rospy.Publisher('tcp_test', String, queue_size=queue_size)
+    start_time_shift = 1
+    pub = rospy.Publisher('tcptest', String, queue_size=queue_size)
     rospy.init_node('talker', anonymous=True)
+    time.sleep(start_time_shift)
     rate = rospy.Rate(comm_rate) # 10hz
-    heart_beat = '*'*data_size
     time_start = time.time()
     sent_cnt = 0
     while time.time() - time_start < run_time and (not rospy.is_shutdown()):
+        ds = np.random.normal(loc=data_size, scale=data_size/10)
+        clumsy_data = '*'*int(ds)
+        heart_beat = "%.32f %s"%(time.time(), clumsy_data)
         pub.publish(heart_beat)
-        sent_cnt += data_size
+        sent_cnt += len(heart_beat)
         rate.sleep()
     print sent_cnt
+    time.sleep(run_time)
 
 if __name__ == '__main__':
     try:

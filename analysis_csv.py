@@ -33,6 +33,7 @@ def groupby(data, gpkeys, varkey, score_func):
     return list(map(mapf, gp))
 
 def round_agg(data, keys, score_func):
+    data = [d for d in data if int(d["run_time(sec)"]) in [1, 2]]
     rdagg = {}
     for key in filter(lambda k: k != "queue_size", keys):
         gpkeys = list(filter(lambda k: k != key, keys))
@@ -46,8 +47,14 @@ def plot_rdagg(rdagg):
         gps = list(gps)
         print(varkey)
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+        fig.set_dpi(300)
 
         def plot_fig(ax, x, y):
+            y = np.array(y)
+            y *= 100
+            ax.set_title(varkey + " - " + "recv_rate (%)")
+            ax.set_xlabel(varkey)
+            ax.set_ylabel("recv_rate (%)")
             if varkey in ["data_size(Byte)", "comm_freq(Hz)"]:
                 ax.semilogx(x,y)
             else:
@@ -74,7 +81,7 @@ def plot_rdagg(rdagg):
 
         plot_mul(ax1)
         plot_avg(ax2)
-
+        plt.tight_layout()
         plt.show()
 
 def heatplot(x, y, nb=32, xsize=500, ysize=500):   
@@ -182,7 +189,7 @@ def analyze_delay(csv_name):
             ax.set_xscale('log')
         plt.show()
         
-def scatter_plot(ax, x,y, title, x_label, y_label, x_log=False):
+def scatter_plot(ax, x,y, title, x_label, y_label, x_log=False, y_log=False):
     if ax is None:
         plt.figure()
         ax = plt.gca()
@@ -192,6 +199,8 @@ def scatter_plot(ax, x,y, title, x_label, y_label, x_log=False):
     ax.scatter(x,y, edgecolors='none', alpha=0.5)
     if x_log:
         ax.set_xscale('log')
+    if y_log:
+        ax.set_yscale('log')
     #plt.show()
 
 def heat_plot(ax, x, y, title, x_label, y_label, nb=64):
@@ -217,8 +226,9 @@ def analyze_delay_in_nodenums(csv_name):
     max_talkn = max(np[0] for np in nn)
     max_lstnn = max(np[1] for np in nn)
     figs = {}
-    for x_type in ["interval", "data_size", "speed", "interval_heat"]:
+    for x_type in ["interval", "data_size", "speed"]:
         fig, axes = plt.subplots(max_talkn, max_lstnn, sharex=True, sharey=True, figsize=(15,15))
+        fig.set_dpi(400)
         figs[x_type] = {"fig":fig, "axes":axes}
         
     for nn, sub_data in data_in_nodenums.items():
@@ -230,13 +240,13 @@ def analyze_delay_in_nodenums(csv_name):
         xs["interval"] = np.array([float(d["interval"]) * 1000 for d in sub_data]) # ms
         xs["data_size"] = np.array([float(d["data_size"]) / 1000 for d in sub_data]) # KB
         xs["speed"] = xs["data_size"] / xs["interval"] # KB / ms
-        xs["interval_heat"] = np.log10(xs["interval"]) # 10^(x) KB
+        #xs["interval_heat"] = np.log10(xs["interval"]) # 10^(x) KB
         
         xlbl = {}
         xlbl["interval"] = "interval (ms)"
         xlbl["data_size"] = "data_size (KB)"
         xlbl["speed"] = "speed (KB/ms)"
-        xlbl["interval_heat"] = "interval (10^(x) KB)"
+        #xlbl["interval_heat"] = "interval (10^(x) KB)"
         
         # new_xs = {}
         # new_xs["interval_heat"] = xs["interval_heat"]
@@ -251,19 +261,22 @@ def analyze_delay_in_nodenums(csv_name):
             x_log = False
             if x_type in ["interval", "data_size", "speed"]:
                 x_log = True
+                y_log = True
             
             if x_type in ["interval", "data_size", "speed"]:
-                scatter_plot(ax, x, y, title, x_label, y_label, x_log)
+                scatter_plot(ax, x, y, title, x_label, y_label, x_log, y_log)
             elif x_type in ["interval_heat"]:
-                heat_plot(ax, x, y, title, x_label, y_label, 128)
+                #heat_plot(ax, x, y, title, x_label, y_label, 128)
+                pass
+    plt.show()
 
 def main():
     csv_name, csv_type = sys.argv[1:3]
     if csv_type == "recv_rate":
         analyze_recv_rate(csv_name)
     elif csv_type == "delay":
-        #analyze_delay_in_nodenums(csv_name)
-        analyze_delay(csv_name)
+        analyze_delay_in_nodenums(csv_name)
+        #analyze_delay(csv_name)
 
 if __name__ == '__main__':
     main()
